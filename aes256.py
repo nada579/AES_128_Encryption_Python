@@ -1,3 +1,6 @@
+import tkinter as tk
+from tkinter import scrolledtext, messagebox
+
 # ---------------- AES-128 Implementation from Scratch ----------------
 
 # 1) AES S-BOX
@@ -28,10 +31,7 @@ for i in range(256):
 # Rcon
 Rcon = [0x00,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1B,0x36]
 
-
-# ----------------------------------------------------------
-# AES BASIC FUNCTIONS
-# ----------------------------------------------------------
+# ---------------- AES BASIC FUNCTIONS ----------------
 
 def sub_bytes(state):
     return [[s_box[b] for b in row] for row in state]
@@ -90,9 +90,7 @@ def add_round_key(state,key):
             state[i][j] ^= key[i][j]
     return state
 
-# ----------------------------------------------------------
-# KEY EXPANSION
-# ----------------------------------------------------------
+# ---------------- KEY EXPANSION ----------------
 
 def key_expansion(key):
     expanded=[key[i:i+4] for i in range(0,16,4)]
@@ -106,9 +104,7 @@ def key_expansion(key):
         expanded.append(new_word)
     return [expanded[i:i+4] for i in range(0,44,4)]
 
-# ----------------------------------------------------------
-# ENCRYPT / DECRYPT BLOCK
-# ----------------------------------------------------------
+# ---------------- ENCRYPT / DECRYPT BLOCK ----------------
 
 def aes_encrypt_block(block, keys):
     state = [list(block[i:i+4]) for i in range(0,16,4)]
@@ -142,10 +138,7 @@ def aes_decrypt_block(block, keys):
 
     return bytes([state[i][j] for i in range(4) for j in range(4)])
 
-
-# ----------------------------------------------------------
-# PKCS7 PADDING
-# ----------------------------------------------------------
+# ---------------- PKCS7 PADDING ----------------
 
 def pad(data):
     pad_len = 16 - (len(data) % 16)
@@ -155,33 +148,83 @@ def unpad(data):
     pad_len = data[-1]
     return data[:-pad_len]
 
-# ----------------------------------------------------------
-# USER INPUT
-# ----------------------------------------------------------
+# ================= GUI =================
 
-msg = input("Enter the message:")
-msg_bytes = pad(msg.encode("utf-8"))
+def encrypt_message():
+    msg = input_box.get("1.0", tk.END).strip()
+    if msg == "":
+        messagebox.showwarning("Warning", "Please enter a message!")
+        return
+    
+    try:
+        msg_bytes = pad(msg.encode("utf-8"))
+        key = b"\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88\x09\xcf\x4f\x3c"
+        keys = key_expansion(list(key))
 
-key = b"\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88\x09\xcf\x4f\x3c"
-keys = key_expansion(list(key))
+        cipher_blocks = []
+        for i in range(0, len(msg_bytes), 16):
+            cipher_blocks.append(aes_encrypt_block(msg_bytes[i:i+16], keys))
 
-# Encrypt
-cipher_blocks=[]
-for i in range(0,len(msg_bytes),16):
-    cipher_blocks.append(aes_encrypt_block(msg_bytes[i:i+16], keys))
+        ciphertext = b"".join(cipher_blocks)
 
-ciphertext = b"".join(cipher_blocks)
+        output_box.delete("1.0", tk.END)
+        output_box.insert(tk.END, ciphertext.hex())
 
-print("\n🔐Encrypted message:")
-print(ciphertext.hex())
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
 
-# Decrypt
-plain_blocks=[]
-for i in range(0,len(ciphertext),16):
-    plain_blocks.append(aes_decrypt_block(ciphertext[i:i+16], keys))
 
-plaintext = unpad(b"".join(plain_blocks))
+def decrypt_message():
+    hex_text = input_box.get("1.0", tk.END).strip()
 
-print("\n🔓 decrypted message:")
+    if hex_text == "":
+        messagebox.showwarning("Warning", "Please enter hexadecimal ciphertext!")
+        return
 
-print(plaintext.decode("utf-8"))
+    try:
+        ciphertext = bytes.fromhex(hex_text)
+
+        key = b"\x2b\x7e\x15\x16\x28\xae\xd2\xa6\xab\xf7\x15\x88\x09\xcf\x4f\x3c"
+        keys = key_expansion(list(key))
+
+        plain_blocks = []
+        for i in range(0, len(ciphertext), 16):
+            plain_blocks.append(aes_decrypt_block(ciphertext[i:i+16], keys))
+
+        plaintext = unpad(b"".join(plain_blocks))
+
+        output_box.delete("1.0", tk.END)
+        output_box.insert(tk.END, plaintext.decode("utf-8"))
+
+    except Exception as e:
+        messagebox.showerror("Error", "Invalid ciphertext!")
+
+
+# ================= BUILD GUI =================
+
+window = tk.Tk()
+window.title("AES-128 Encryption Tool")
+window.geometry("600x500")
+window.resizable(False, False)
+
+title = tk.Label(window, text="AES-128 From Scratch", font=("Arial", 18, "bold"))
+title.pack(pady=10)
+
+tk.Label(window, text="Input:", font=("Arial", 12)).pack()
+input_box = scrolledtext.ScrolledText(window, width=70, height=8)
+input_box.pack(pady=5)
+
+frame = tk.Frame(window)
+frame.pack(pady=5)
+
+enc_btn = tk.Button(frame, text="Encrypt", width=15, command=encrypt_message)
+dec_btn = tk.Button(frame, text="Decrypt", width=15, command=decrypt_message)
+
+enc_btn.grid(row=0, column=0, padx=10)
+dec_btn.grid(row=0, column=1, padx=10)
+
+tk.Label(window, text="Output:", font=("Arial", 12)).pack()
+output_box = scrolledtext.ScrolledText(window, width=70, height=8)
+output_box.pack(pady=5)
+
+window.mainloop()
