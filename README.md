@@ -1,4 +1,4 @@
-# AES_256_Encryption_Python
+# AES_128_Encryption_Python
 📌 Encryption Project — Caesar Cipher + AES (GUI)
 
 Python Cryptography Projects
